@@ -57,6 +57,11 @@ Table_Heading = "Cell Counts";
 columns = newArray("Well",channel1+" +ve", channel2+ " +ve", "Mean "+channel1+" Cell Size", "Mean "+channel2+" Cell Size");
 table = generateTable(Table_Heading,columns);
 
+//Setup custom 384 well plate maps
+channel1_count_array = generate384WellPlateArray();
+channel2_count_array = generate384WellPlateArray();
+
+setBatchMode(true);
 //Begin the Loop!
 for(i=0;i<list.length;i++){
 	
@@ -74,6 +79,8 @@ for(i=0;i<list.length;i++){
 		if(matches(channel1_fname,".*"+channel1+".*")){
 			//Get Well and channel2 file name
 			well = substring(channel1_fname,5,9);
+			row = substring(well,0,1);
+			col = substring(well,1,lengthOf(well));
 			file_prefix = substring(channel1_fname,0,9);
 			file_suffix = substring(channel1_fname,lengthOf(channel1_fname)-18,lengthOf(channel1_fname));
 			channel2_fname = file_prefix + channel2 + file_suffix;
@@ -95,6 +102,7 @@ for(i=0;i<list.length;i++){
 			roiManager("Show All");
 			run("Analyze Particles...", "size=15-Infinity pixel circularity=0.50-1.00 show=Nothing display clear add");
 			channel1_count = nResults();
+			writeTo384WellArray(channel1_count_array,row,col,channel1_count);
 				//Summarise results
 				count = nResults();
 				resultsArray=newArray();
@@ -125,6 +133,7 @@ for(i=0;i<list.length;i++){
 				roiManager("Show All");
 				run("Analyze Particles...", "size=15-Infinity pixel circularity=0.50-1.00 show=Nothing display clear add");
 				channel2_count = nResults();
+				writeTo384WellArray(channel2_count_array,row,col,channel2_count);
 								
 			//Summarise results
 				count = nResults();
@@ -156,6 +165,17 @@ for(i=0;i<list.length;i++){
 	}
 }
 run("Close All");
+
+printArrayTable("Channel 1 counts",channel1_count_array);
+printArrayTable("Channel 2 counts",channel2_count_array);
+
+ratio_array = newArray(channel1_count_array.length);
+for(i=0;i<channel1_count_array.length;i++){
+	ratio_array[i]=channel2_count_array[i]/channel1_count_array[i];
+}
+
+printArrayTable("Ratio",ratio_array);
+
 
 selectWindow(Table_Heading);
 if(batchFlag){
@@ -303,11 +323,100 @@ function mainMenu(channels){
 		CHANNEL2_RB_RADIUS = Dialog.getNumber();
 		CHANNEL2_THRESHOLD = Dialog.getNumber();
 	}
-	
-	
-	
+}
 
+
+function generate96WellPlateArray(){
+	x=12;
+	y=8;		// 96 well plate dimensions
+	thing = newArray(x*y);
+	return thing;
+}
+
+function generate384WellPlateArray(){
+	x=24;
+	y=16;		// 96 well plate dimensions
+	thing = newArray(x*y);
+	return thing;
+}
+
+function writeTo96WellArray(ArrayName,row,column,value){
+	if(column>12){showMessage("You've made a terrible mistake");exit;}
+	r = rowToIndex(row);
+	if(r>7){showMessage("You've made a terrible mistake");exit;}
+	c = column-1;		   //index from 0
+	ArrayName[c+r*12] = value; //12 for width of 96 well plate
+}
+
+function writeTo384WellArray(ArrayName,row,column,value){
+	if(column>24){showMessage("You've made a terrible mistake");exit;}
+	r = rowToIndex(row);
+	if(r>15){showMessage("You've made a terrible mistake");exit;} 
+	c = parseInt(column)-1;	   //index from 0
+	ArrayName[c+r*24] = value; //12 for width of 384 well plate
+}
+
+function rowToIndex(row){
+	index = parseInt(row,36)-10;
+	return index	
+}
+
+function indexToRow(index){
+	if(index==1){row="a";}
+	if(index==2){row="b";}
+	if(index==3){row="c";}
+	if(index==4){row="d";}
+	if(index==5){row="e";}
+	if(index==6){row="f";}
+	if(index==7){row="g";}
+	if(index==8){row="h";}
+	if(index==9){row="i";}
+	if(index==10){row="j";}
+	if(index==11){row="k";}
+	if(index==12){row="l";}
+	if(index==13){row="m";}
+	if(index==14){row="n";}
+	if(index==15){row="o";}
+	if(index==16){row="p";}
+	//print(row);
+	return row;	
 	
- }
+}
+
+function printArrayTable(Table_Heading,arrayname){
+	if(arrayname.length==96){
+		columns = newArray("Row");
+		for(i=0;i<12;i++){
+			columns=Array.concat(columns,i+1);
+		}
+		table = generateTable(Table_Heading,columns);
+		for(i=0;i<8;i++){
+			row = indexToRow(i+1);
+			
+			newline=newArray(""+row+"");
+			for(j=0;j<12;j++){
+				newline=Array.concat(newline,arrayname[j+i*12]);
+				}
+			logResults(table,newline);
+		}
+	}
+	if(arrayname.length==384){
+		columns = newArray("Row");
+		for(i=0;i<24;i++){
+			columns=Array.concat(columns,i+1);
+		}
+		table = generateTable(Table_Heading,columns);
+		for(i=0;i<16;i++){
+			row = indexToRow(i+1);
+			
+			newline=newArray(""+row+"");
+			for(j=0;j<24;j++){
+				newline=Array.concat(newline,arrayname[j+i*24]);
+				}
+			logResults(table,newline);
+		}
+	}
+}
+
 
 

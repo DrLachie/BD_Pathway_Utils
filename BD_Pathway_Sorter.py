@@ -22,5 +22,6 @@ for well in wells:
                         if match:
                                 shutil.copy2(os.path.join(filepath,well,fname),os.path.join(newpath,well+fname));
 
+print("Done");
 #command = 'C:\\Users\\whitehead\\Documents\\Fiji\\Fiji.app\\fiji-win64.exe -macro stack_BD.ijm ' + newpath + '\\'
 #os.system(command);

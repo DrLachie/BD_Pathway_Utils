@@ -125,4 +125,10 @@ writeTo384WellArray(anotherPlateMap,"g",24,100);
 printArrayTable("Expname Mean",platemap);
 printArrayTable("asdf2",anotherPlateMap);
 
+newline = newArray("d",1,2,3,4,5,6,7,8,9,10,11,12);
+resultString=newArray();
+for(i=1;i<newline.length;i++){
+		resultString = toString(resultString + " \t " + newline[i]);
+	}
 
+print("[asdf2]","\\Update3:"+resultString);

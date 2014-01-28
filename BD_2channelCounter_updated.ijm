@@ -26,6 +26,7 @@ var dir1="C:\\";
 var dir2="C:\\";
 var list = newArray();
 var fs = File.separator();
+var GENERATE_MASKS = false;
 
 run("Set Measurements...", "area limit channel2irect=None decimal=3"); //<- for measuring area
 
@@ -37,6 +38,10 @@ channels = getChannels(list);
 print("There are "+channels.length+" channels. ");
 print("And they are ");
 Array.print(channels);
+
+exp_name = File.getName(dir1);
+print("And the experiment is called: " + exp_name);
+
 
 channel1 = channels[0];
 if(channels.length==2){
@@ -53,15 +58,16 @@ if(channels.length==2){
 
 
 //Setup custom results table 
-Table_Heading = "Cell Counts";
-columns = newArray("Well",channel1+" +ve", channel2+ " +ve", "Mean "+channel1+" Cell Size", "Mean "+channel2+" Cell Size");
+Table_Heading = "" + exp_name + " Cell Counts";
+columns = newArray("Well",channel1+" +ve", "Mean "+channel1+" Cell Size",  channel2+ " +ve", "Mean "+channel2+" Cell Size", "Double pos");
 table = generateTable(Table_Heading,columns);
 
 //Setup custom 384 well plate maps
 channel1_count_array = generate384WellPlateArray();
 channel2_count_array = generate384WellPlateArray();
+double_count_array = generate384WellPlateArray();
 
-setBatchMode(true);
+//setBatchMode(true);
 //Begin the Loop!
 for(i=0;i<list.length;i++){
 	
@@ -77,115 +83,73 @@ for(i=0;i<list.length;i++){
 		//////////////////////
 		channel1_fname = list[i];
 		if(matches(channel1_fname,".*"+channel1+".*")){
-			//Get Well and channel2 file name
 			well = substring(channel1_fname,5,9);
 			row = substring(well,0,1);
 			col = substring(well,1,lengthOf(well));
 			file_prefix = substring(channel1_fname,0,9);
 			file_suffix = substring(channel1_fname,lengthOf(channel1_fname)-18,lengthOf(channel1_fname));
 			channel2_fname = file_prefix + channel2 + file_suffix;
-		
-		
-			//CHANNEL 1 SEGMENTATION AND COUNT
-			open(dir1+channel1_fname);
-			run("Properties...", "unit=pixels pixel_width=1 pixel_height=1 voxel_depth=1");
-			makeRectangle(762, 405, 2196, 2160);
-			run("Duplicate...", "title=[channel1_Channel]");
-			run("Duplicate...", "title=[Asdf]");
-			//run("Smooth");
-			run("Subtract Background...", "rolling=50");
-			setThreshold(90,4095);
-			run("Convert to Mask");
-			run("Watershed");
-			//setTool("zoom");
-			roiManager("Show All with labels");
-			roiManager("Show All");
-			run("Analyze Particles...", "size=15-Infinity pixel circularity=0.50-1.00 show=Nothing display clear add");
-			channel1_count = nResults();
-			writeTo384WellArray(channel1_count_array,row,col,channel1_count);
-				//Summarise results
-				count = nResults();
-				resultsArray=newArray();
-				for(j=0;j<count;j++){
-					resultsArray=Array.concat(resultsArray,getResult("Area",j));
-				};
-				Array.getStatistics(resultsArray,min,max,avg,stDev);
-				channel1_avg_size = avg;
-			
-			selectWindow("channel1_Channel");
-			roiManager("Show All without labels");
-			run("Flatten");
-			saveAs("TIF",dir2+channel1_fname);
-			
-			//CHANNEL 2 SEGMENTATION AND COUNT - if channel 2 exists
-			if(channels.length==2){
-				open(dir1+channel2_fname);
-				run("Properties...", "unit=pixels pixel_width=1 pixel_height=1 voxel_depth=1");
-				makeRectangle(762, 405, 2196, 2160);
-				run("Duplicate...", "title=[channel2_Channel]");
-				run("Duplicate...", "title=[Asdf]");
-				run("Subtract Background...", "rolling=50");
-				setThreshold(65,4095);
-				run("Convert to Mask");
-				run("Watershed");
-				//setTool("zoom");
-				roiManager("Show All with labels");
-				roiManager("Show All");
-				run("Analyze Particles...", "size=15-Infinity pixel circularity=0.50-1.00 show=Nothing display clear add");
-				channel2_count = nResults();
-				writeTo384WellArray(channel2_count_array,row,col,channel2_count);
-								
-			//Summarise results
-				count = nResults();
-				resultsArray=newArray();
-				for(j=0;j<count;j++){
-					resultsArray=Array.concat(resultsArray,getResult("Area",j));
-				};
-				Array.getStatistics(resultsArray,min,max,avg,stDev);
-				channel2_avg_size = avg;
-				
-				selectWindow("channel2_Channel");
-				roiManager("Show All without labels");
-				run("Flatten");
-				saveAs("TIF",dir2+channel2_fname);
-			
-			}
 
-			
-	
-			resultArray = newArray(well,channel1_count,channel2_count,channel1_avg_size,channel2_avg_size);
+			channel1_results = segment_channel(channel1_fname,50,90,15,channel1_count_array);
+
+			open(dir1+channel2_fname);
+
+			channel2_results = segment_channel(channel2_fname,50,65,15,channel2_count_array);
+
+				//If double pos count:
+				selectWindow("ROI Manager");
+				run("Close");
+		
+				
+				imageCalculator("AND create", channel1_fname+"_mask", channel2_fname+"_mask");
+				//selectWindow("Result of Well B002mCherry mkk - n000000.tif_mask");
+				setAutoThreshold("Default dark");
+				run("Analyze Particles...", "size=15-Infinity pixel circularity=0.5-1.00 show=Nothing display clear add");
+				count = roiManager("Count");
+				print("Double pos in " + row + toString(col) + " = " + count);
+
+				writeTo384WellArray(double_count_array,row,col,count);
+					
+
+
+			resultArray = Array.concat(well,channel1_results,channel2_results,count);
 			logResults(table,resultArray);
 			
+		}
+
 			//Clean up only if we're batching, if not just leave everything open
 			//Consider closing superflous images as you go along
 			if(batchFlag){
 				run("Close All");
 			}
-		}	
-	}
+	}	
+	
 }
 run("Close All");
 
-printArrayTable("Channel 1 counts",channel1_count_array);
-printArrayTable("Channel 2 counts",channel2_count_array);
+
+
+
+printArrayTable("" + exp_name + " " + channel1 + " counts",channel1_count_array);
+printArrayTable("" + exp_name + " " + channel2 + " counts",channel2_count_array);
+printArrayTable("" + exp_name + " Double counts",double_count_array);
 
 ratio_array = newArray(channel1_count_array.length);
 for(i=0;i<channel1_count_array.length;i++){
 	ratio_array[i]=channel2_count_array[i]/channel1_count_array[i];
 }
 
-printArrayTable("Ratio",ratio_array);
+printArrayTable("" + exp_name+ " Ratio",ratio_array);
 
 
+
+/* PUT SAVE TABLE INTO FUNCTION */
 selectWindow(Table_Heading);
 if(batchFlag){
-	if(File.exists(dir2+Table_Heading+".txt")){
-		overwrite=getBoolean("Warning\nResult table file alread exists, overwrite?");
-			if(overwrite==1){
-				saveAs("Text",dir2+Table_Heading+".txt");
-			}
-	}else{
-		saveAs("Text",dir2+Table_Heading+".txt");
+	saveTable(Table_Heading);
+	saveTable("" + exp_name + " " + channel1 + " counts");
+	saveTable("" + exp_name + " " + channel2 + " counts");
+	saveTable("" + exp_name + " Double counts");
 	}
 
 ////////////////////////////////////////////////////
@@ -223,6 +187,18 @@ function logResults(tablename,results_array){
 	}
 	//Populate table
 	print(tablename,resultString);
+}
+
+function saveTable(temp_tablename){
+	selectWindow(temp_tablename);
+	if(File.exists(dir2+temp_tablename+".txt")){
+		overwrite=getBoolean("Warning\nResult table \""+temp_tablename+"\" file alread exists, overwrite?");
+			if(overwrite==1){
+				saveAs("Text",dir2+temp_tablename+".txt");
+			}
+	}else{
+		saveAs("Text",dir2+temp_tablename+".txt");
+	}
 }
 
 //Choose what to batch on
@@ -418,5 +394,45 @@ function printArrayTable(Table_Heading,arrayname){
 	}
 }
 
+
+function segment_channel(filename,bg_rad,low_thresh,min_size,count_platemap_name){
+	well = substring(filename,5,9);
+	row = substring(well,0,1);
+	col = substring(well,1,lengthOf(well));
+
+	run("Properties...", "unit=pixels pixel_width=1 pixel_height=1 voxel_depth=1");
+	makeRectangle(762, 405, 2196, 2160);
+	run("Duplicate...", "title=[Temp_Channel]");
+	run("Duplicate...", "title=[Asdf]");
+	//run("Smooth");
+	run("Subtract Background...", "rolling="+bg_rad);
+	setThreshold(low_thresh,4095);
+	run("Convert to Mask");
+	run("Watershed");
+	rename(filename+"_mask");
+	//setTool("zoom");
+	roiManager("Show All with labels");
+	roiManager("Show All");
+	run("Analyze Particles...", "size=15-Infinity pixel circularity=0.50-1.00 show=Nothing display clear add");
+	count = nResults();
+	writeTo384WellArray(count_platemap_name,row,col,count);
+	//Summarise results
+	resultsArray=newArray();
+	for(j=0;j<count;j++){
+		resultsArray=Array.concat(resultsArray,getResult("Area",j));
+	};
+	Array.getStatistics(resultsArray,min,max,avg,stDev);
+	avg_size = avg;
+	count_and_size = newArray(count,avg_size);
+	return count_and_size;	
+
+	if(GENERATE_MASKS){
+			selectWindow("Temp_Channel");
+			roiManager("Show All without labels");
+			run("Flatten");
+			saveAs("TIF",dir2+filename);
+	}
+	
+}
 
 

@@ -82,19 +82,19 @@ for(i=0;i<list.length;i++){
 			//CHANNEL 1 SEGMENTATION AND COUNT
 			open(dir1+channel1_fname);
 			run("Properties...", "unit=pixels pixel_width=1 pixel_height=1 voxel_depth=1");
-			makeRectangle(762, 405, 2196, 2160);
+			makeRectangle(687, 381, 2397, 2232);
 			run("Duplicate...", "title=[channel1_Channel]");
 			run("Duplicate...", "title=[Asdf]");
 			//run("Smooth");
 			run("Subtract Background...", "rolling=50");
-			setThreshold(90,4095);
+			setThreshold(100,4095);
 			run("Convert to Mask");
 			run("Watershed");
 			//setTool("zoom");
 			roiManager("Show All with labels");
 			roiManager("Show All");
-			run("Analyze Particles...", "size=15-Infinity pixel circularity=0.50-1.00 show=Nothing display clear add");
-			channel1_count = nResults();
+			run("Analyze Particles...", "size=50-Infinity pixel circularity=0.50-1.00 show=Nothing display clear add");
+			channel1_count = nResults();.
 				//Summarise results
 				count = nResults();
 				resultsArray=newArray();
@@ -113,17 +113,17 @@ for(i=0;i<list.length;i++){
 			if(channels.length==2){
 				open(dir1+channel2_fname);
 				run("Properties...", "unit=pixels pixel_width=1 pixel_height=1 voxel_depth=1");
-				makeRectangle(762, 405, 2196, 2160);
+				makeRectangle(687, 381, 2397, 2232);
 				run("Duplicate...", "title=[channel2_Channel]");
 				run("Duplicate...", "title=[Asdf]");
 				run("Subtract Background...", "rolling=50");
-				setThreshold(65,4095);
+				setThreshold(100,4095);
 				run("Convert to Mask");
 				run("Watershed");
 				//setTool("zoom");
-				roiManager("Show All with labels");
+				roiManager("Show All without labels");
 				roiManager("Show All");
-				run("Analyze Particles...", "size=15-Infinity pixel circularity=0.50-1.00 show=Nothing display clear add");
+				run("Analyze Particles...", "size=25-Infinity pixel circularity=0.50-1.00 show=Nothing display clear add");
 				channel2_count = nResults();
 								
 			//Summarise results

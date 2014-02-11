@@ -26,7 +26,7 @@ var dir1="C:\\";
 var dir2="C:\\";
 var list = newArray();
 var fs = File.separator();
-var GENERATE_MASKS = false;
+var GENERATE_MASKS = true;
 
 run("Set Measurements...", "area limit channel2irect=None decimal=3"); //<- for measuring area
 
@@ -52,6 +52,8 @@ if(channels.length==2){
 	channel2_count = 0;
 	channel2_avg_size = 0;
 	channel2 = "empty";
+	channel2_results = 0;
+	count=0;
 }
 
 
@@ -64,8 +66,10 @@ table = generateTable(Table_Heading,columns);
 
 //Setup custom 384 well plate maps
 channel1_count_array = generate384WellPlateArray();
-channel2_count_array = generate384WellPlateArray();
-double_count_array = generate384WellPlateArray();
+if(channels.length==2){
+	channel2_count_array = generate384WellPlateArray();
+	double_count_array = generate384WellPlateArray();
+}
 
 //setBatchMode(true);
 //Begin the Loop!
@@ -90,10 +94,11 @@ for(i=0;i<list.length;i++){
 			file_suffix = substring(channel1_fname,lengthOf(channel1_fname)-18,lengthOf(channel1_fname));
 			channel2_fname = file_prefix + channel2 + file_suffix;
 
-			channel1_results = segment_channel(channel1_fname,50,90,15,channel1_count_array);
-
+			channel1_results = segment_channel(channel1_fname,50,100,15,channel1_count_array);
+			
+			if(channels.length==2){
 			open(dir1+channel2_fname);
-
+			
 			channel2_results = segment_channel(channel2_fname,50,65,15,channel2_count_array);
 
 				//If double pos count:
@@ -108,7 +113,7 @@ for(i=0;i<list.length;i++){
 				count = roiManager("Count");
 				print("Double pos in " + row + toString(col) + " = " + count);
 
-				writeTo384WellArray(double_count_array,row,col,count);
+				writeTo384WellArray(double_count_array,row,col,count);}
 					
 
 
